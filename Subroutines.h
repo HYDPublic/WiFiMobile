@@ -3,11 +3,10 @@
  */
 void UDPSEND (uint8_t *SendMsg, uint8_t Len,int DELAY){
 
-   //delay(DELAY);
-   
-              UDP.beginPacket(ipBroad, port);
-              UDP.write(SendMsg, Len);
-              UDP.endPacket(); 
+              UDP2.beginPacket(ipBroad, port);
+              UDP2.write(SendMsg, Len);
+              UDP2.endPacket(); 
+              UDP2.flush();
 }
 
 void setOPC_LONG_ACK_Msg (uint8_t *SendMsg, uint8_t LOPC, uint8_t ACK1 )  
@@ -809,25 +808,41 @@ void LocoUpdate( byte Ref){
   #if _SERIAL_DEBUG
  // Serial.print(Ref);
        #endif 
-   
+ // if ((A0rx) & (A1rx)&(A2rx)){           
+  // setOPC_LONG_ACK_Msg (sendMessage, 0xA3,  MyLocoAddr)  ; // all parts received, send ACK
+   //UDPSEND(sendMessage,4,(millis()-locoA2time));
+   // }else{    
+     // #if _SERIAL_DEBUG
+     //  if (!A0rx){Serial.print("A0 Missed");}
+      // if (!A1rx){Serial.print("A1 Missed");} 
+       //if (!A2rx){Serial.print("A2 Missed");}
+       //     #endif  
+         //   }
+A0rx=false;
+A1rx=false;
+A2rx=false;
+A3rx=false;
+ 
   if(bitRead(CV[29],0)){            // need to account for the  cv29 bit 0....
           if(bitRead(DIRF, 5 )){
              Serial.print(" Backwards"); 
-             Loco_motor_servo_demand= Motor_Speed +90;}
+             Loco_motor_servo_demand= (CV[2]+ (Motor_Speed*(CV[5]-CV[2]))/(100));}
           else{
              Serial.print(" Forwards"); 
-             Loco_motor_servo_demand= 90-Motor_Speed;}
+             Loco_motor_servo_demand= (CV[6]- (Motor_Speed*(CV[6]-CV[9]))/(100)) ;}
                       }
                  else {
     if(bitRead(DIRF, 5 )){
             Serial.print(" Forwards"); 
-            Loco_motor_servo_demand= 90-Motor_Speed;}
+            Loco_motor_servo_demand=  (CV[2]+ (Motor_Speed*(CV[5]-CV[2]))/(100));}
           else{
             Serial.print(" Backwards");
-            Loco_motor_servo_demand= Motor_Speed +90; }
+            Loco_motor_servo_demand= (CV[6]- (Motor_Speed*(CV[6]-CV[9]))/(100)) ;}
                       }  
                       digitalWrite (D3, bitRead(DIRF,3));
-                      digitalWrite (D0, bitRead(DIRF,2));  //CHEAT    FIX later..
+                      digitalWrite (D0, bitRead(DIRF,2));  //LED CHEAT    FIX later..
+
+            if ((Motor_Speed == 00)||(Motor_Speed==0x01)) { Loco_motor_servo_demand=90;} 
                       
      #if _SERIAL_DEBUG
           Serial.print(F(" @ Speed :"));

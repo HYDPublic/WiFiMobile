@@ -42,6 +42,14 @@ CV[1]= 0x03;
 CV[3]= 0x03;   // default acc/decc
 CV[29]= 0x32;  // N0rmal  addressing..  
 
+CV[5]=130;   // default servo settings for + 100
+CV[2]=95;    // default servo settings for + lowest speed
+CV[6]=85;   // default servo settings for - 100
+CV[9]=50;   // default servo settings for -ve lowest speed
+
+
+
+
 CV[8]= 0x0D; // DIY MFR code
 CV[7] = 0x01;
  #if _SERIAL_SUBS_DEBUG

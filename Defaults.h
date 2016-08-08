@@ -98,6 +98,17 @@ int CRD_SENSOR ;
 
 uint8_t Motor_Speed =0 ;
 uint8_t Loco_motor_servo_demand =0 ;
+uint32_t locoA0time;
+uint32_t locoA1time;
+uint32_t locoA2time;
+byte locosum;
+boolean LocoUpdated;
+uint32_t LocoUpdateTime;
+uint32_t LoopTimer;
+bool A0rx;
+bool A1rx;
+bool A2rx;
+bool A3rx;
 
 uint8_t DIRF =0 ;
 uint8_t SND =0 ;
@@ -125,11 +136,5 @@ uint32_t Ten_Sec;
 uint32_t MSTimer;
 //describe the subroutines..
 
-uint32_t locoA0time;
-uint32_t locoA1time;
-uint32_t locoA2time;
-byte locosum;
-boolean LocoUpdated;
-uint32_t LocoUpdateTime;
-uint32_t LoopTimer;
+
 

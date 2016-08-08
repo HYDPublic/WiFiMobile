@@ -56,16 +56,20 @@ void Len4commands (uint8_t *RECMsg) {
     case  0xA0:    //OPC_LOCO_SPD  //loco speed.. ++++++++++++++++++++++++++++++++++++
           if ((CommandFor(RECMsg)== MyLocoAddr) ){       
                      digitalWrite (BlueLed, LOW) ;  /// turn On        
-                     Motor_Speed= (RECMsg[2]*90)/127; 
+                     Motor_Speed= ((RECMsg[2]*45)/57); //try to make Motor Speed equal to what Rocrail shows
                      LocoUpdated=true;
                      locoA0time=millis();
-                     LocoUpdateTime=millis()+25;}          
-                         break;
+                     A0rx=true;
+                     LocoUpdateTime=millis()+25;
+                     if (RECMsg[2]==0x01){ myservo8.write(90);    }// EMERGENCY STOP // set mid position immediately!}
+                     }   
+                     break;
    case  0xA1:    //OPC_LOCO_DIRF== OPC_LOCO_DIRF){  //loco DIRF.. ++++++++++++++++++++++++++++++++++++
         if ((CommandFor(RECMsg)== MyLocoAddr) ){   
                     digitalWrite (BlueLed, LOW) ;  /// turn On 
                     DIRF=RECMsg[2];
                     LocoUpdated=true;
+                    A1rx=true;
                     LocoUpdateTime=millis()+20;      
                                  }              
      // IF "LOCO" the code will drive servo 8, (in do periodicupdate   motorspeed  set SV's for 8 to Servo, but address to ??
@@ -76,6 +80,8 @@ void Len4commands (uint8_t *RECMsg) {
                      digitalWrite (BlueLed, LOW) ;  /// turn On 
                      SND= RECMsg[2]; 
                      LocoUpdated=true; 
+                     A2rx=true;
+                     locoA2time=millis();
                      LocoUpdateTime=millis()+15;
                                    }     
     break;
