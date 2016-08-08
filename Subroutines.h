@@ -612,7 +612,7 @@ i=8;
     ServoPositionNow= myservo8.read(); 
     SDemand[i]=Loco_motor_servo_demand;
     offset= Loco_motor_servo_demand-ServoPositionNow;
-    if (abs(offset) > (CV[3]+1)){  // can be Cv's later...
+    if (abs(offset) > (CV[3]+1)){  // can be acc and dec Cv's later...
       offset= (offset*(CV[3]+1))/abs(offset);
     }
     if ((ServoPositionNow+offset<=180) && ((ServoPositionNow+offset) >=1)){
@@ -849,8 +849,6 @@ A3rx=false;
           Serial.print(Motor_Speed);
           Serial.print(F(" Servo :"));
           Serial.print(Loco_motor_servo_demand);
-          Serial.print(F(" commandsum: "));
-          Serial.print(locosum); 
           Serial.print(F(" Functions: "));
           Serial.println(DIRF&0x1F);
      #endif  
@@ -888,5 +886,4 @@ void Show_MSG(){
          Serial.println( );
      #endif   
 }
-
 

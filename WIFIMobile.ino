@@ -29,7 +29,7 @@ WiFiServer server(80);
 
 
 //otherstuff
-int LoopCount ;
+
 byte udpTestPacket0[] = {0xB2, 0x02, 0x50, 0x1F};
 byte udpTestPacket1[] = {0xB2, 0x02, 0x40, 0x0F};
 byte UDPSendPacket[16]  ;
@@ -40,6 +40,7 @@ SPISettings settingsRFID (40000000, LSBFIRST,SPI_MODE0);
 #include "Motor.h"; 
 #include "RFID_Subs.h";
 void setup() {
+  POWERON=true;
   Ten_Sec= 10000;
  LOCO = 1;
   Serial.begin(115200);
@@ -76,7 +77,7 @@ void setup() {
                       Data_Updated= true; 
                       EEprom_Counter=millis()+Ten_Sec;
                       //EEPROM.commit();
-                      delay(100);
+                      //delay(100);
                                 } //if
      
 
@@ -90,7 +91,7 @@ void setup() {
 //   * Setup rfidstuff *************************
 
   SPI.begin();        // Init SPI bus// 
-  SPI.setFrequency(5000000);
+  SPI.setFrequency(1000000);
   //SPI.beginTransaction(settingsRFID);
     mfrc522.PCD_Init(); // Init MFRC522 card
     byte readReg = mfrc522.PCD_ReadRegister(mfrc522.VersionReg);
@@ -175,7 +176,7 @@ if ( LOCO == 1 ) {
    servoDelay[8]=millis();
    LocoUpdate;
 }
-LoopCount = 0;
+
 
 SensorOutput_Inactive = true;
 
@@ -195,18 +196,23 @@ void loop() {
     FullBoardAddress=AddrFull(SV[2],SV[1]);
     MyLocoLAddr=CV[18]+((CV[17]&0x3F)*256);
     MyLocoAddr=CV[1];/// 
-    LoopCount=LoopCount+1;
+
+    if (POWERON) {
+      myservo8.attach(D8);
+      }
    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ 
 
-   //periodic updates and checks
-    if ((millis()>=LocoUpdateTime) & (LocoUpdated)){LocoUpdate(1);}   // show time from last AO command for test purposes
+   
   // commit the writes to the  Eprom?
     if ((millis()>= EEprom_Counter) & (Data_Updated)){                // commit EEPROM only when needed..
                      Data_Updated=false; 
                      #if _SERIAL_DEBUG
                      Serial.println("Commiting EEPROM");
                      #endif
-                     EEPROM.commit();                }
+                     EEPROM.commit();     
+                     delay(250);
+                     //ESP.reset() ;
+                     }    // soft reset? ?? why does doing this eprom commit stop the servo output???
                       
   //re-connect wifi if not connected
     while (WiFi.status() != WL_CONNECTED)                        {
@@ -218,27 +224,35 @@ void loop() {
               WiFi.begin(wifiSSID.c_str(), wifiPassword.c_str()); }
               
     
+ //periodic updates and checks
+    if ((millis()>=LocoUpdateTime) & (LocoUpdated)){LocoUpdate(1);}  
+    if (millis()>= CVSVUpdateTime){doLocoServo();}   // avoid doing anything when doing cv or sv read writes...
+    if (millis()>= CVSVUpdateTime){checkRFID();}  // if we are doing CVSv anything, wait one second before doing any CheckRFID 
  
-     doLocoServo();
-     UDPFetch(recMessage); //have we recieved data??    
-
-
+  UDPFetch(recMessage); //have we recieved data??    
       
          switch (Message_Length){
           case 0: {  // no rx data to work with //if not receiving, do other things...
                      //   ReadInputPorts();
-                     checkRFID();
+
                     }    // end case 0
           break;             
  
          case 2:
-                if ((recMessage[0]==0x82) & (recMessage[1]==0x7D)){
+                if ((recMessage[0]==0x82) & (recMessage[1]==0x7D)){   //  power off
+                   POWERON=false;
                    Motor_Speed=0;
                    myservo8.write(90);
                    delay(150);
                    myservo8.detach(); }
-                if ((recMessage[0]==0x83) & (recMessage[1]==0x7C)){ myservo8.attach(D8); }
-         // will need to add other emergency stops? in here...
+                    if ((recMessage[0]==0x85) & (recMessage[1]==0x7A)){   //  emergency stops
+                   POWERON=false;
+                   Motor_Speed=0;
+                   myservo8.write(90);
+                   delay(150);
+                   myservo8.detach(); }
+                if ((recMessage[0]==0x83) & (recMessage[1]==0x7C)){ POWERON=true; }
+         
          break;
            case 4:
                 Len4commands(recMessage); 

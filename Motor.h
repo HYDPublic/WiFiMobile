@@ -60,7 +60,7 @@ void Len4commands (uint8_t *RECMsg) {
                      LocoUpdated=true;
                      locoA0time=millis();
                      A0rx=true;
-                     LocoUpdateTime=millis()+25;
+                     LocoUpdateTime=millis()+30;
                      if (RECMsg[2]==0x01){ myservo8.write(90);    }// EMERGENCY STOP // set mid position immediately!}
                      }   
                      break;
@@ -70,7 +70,7 @@ void Len4commands (uint8_t *RECMsg) {
                     DIRF=RECMsg[2];
                     LocoUpdated=true;
                     A1rx=true;
-                    LocoUpdateTime=millis()+20;      
+                    LocoUpdateTime=millis()+25;      
                                  }              
      // IF "LOCO" the code will drive servo 8, (in do periodicupdate   motorspeed  set SV's for 8 to Servo, but address to ??
      // will need to set motorspeed change as acc and dec CV functions and vary motor speed by loco cvs...
@@ -82,7 +82,7 @@ void Len4commands (uint8_t *RECMsg) {
                      LocoUpdated=true; 
                      A2rx=true;
                      locoA2time=millis();
-                     LocoUpdateTime=millis()+15;
+                     LocoUpdateTime=millis()+20;
                                    }     
     break;
  
@@ -108,7 +108,7 @@ void Len4commands (uint8_t *RECMsg) {
    case  0xBA:    //OPC_MOVE_Slots                      //move slots.. ++++++++++++++++++++++++++++++++++++
          if ((CommandFor(RECMsg)== MyLocoAddr) ) {    // ********** Look for messages in my range  
             digitalWrite (BlueLed, LOW) ;  /// turn On                        locoA0time=millis();
-        LocoUpdateTime=millis()+30;
+        LocoUpdateTime=millis()+40;
         #if _SERIAL_DEBUG
           Serial.println(F(" OPC_MOVE_SLOTS Message")) ;     
         #endif  
@@ -148,6 +148,7 @@ void Len14Commands (uint8_t *RECMsg) {
 if ((RECMsg[0] == OPC_WR_SL_DATA)&(RECMsg[2]==0x7C)){ //"Write PT slot data"   read write cv data.  
   if ((CommandFor(RECMsg)== MyLocoAddr)||(CommandFor(RECMsg)== MyLocoLAddr)||(CommandFor(RECMsg)== 0)) {  // ?? Full check of possibilities? May need to add a CV29  bit to select L and S addr messages..
                     digitalWrite (BlueLed, LOW) ;  /// turn On 
+                     CVSVUpdateTime=millis()+1000;
                     CVRequest=(RECMsg[9]&0x7F)+(128*bitRead(RECMsg[8],0))+(256*bitRead(RECMsg[8],4))+(512*bitRead(RECMsg[8],5));
                     CV_Data=(RECMsg[10]&0x7F)+(128*bitRead(RECMsg[8],1));
                    //REQUEST CV  DATA+++++++++++++++++++++
@@ -220,7 +221,8 @@ if ((RECMsg[0] == OPC_WR_SL_DATA)&(RECMsg[2]==0x7C)){ //"Write PT slot data"   r
 void Len16Commands (uint8_t *RECMsg) {
   if (recMessage[0]== OPC_PEER_XFER){
         if (((CommandFor(recMessage)== FullBoardAddress)  ||(recMessage[3]== 0))){  // my address or broadcast        
-            OPCPeerRX(recMessage);
+            OPCPeerRX(recMessage); 
+            CVSVUpdateTime=millis()+1000;
             if(recMessage[3]== 0){
                  delay(wifiaddr*20);
                }

@@ -104,6 +104,7 @@ uint32_t locoA2time;
 byte locosum;
 boolean LocoUpdated;
 uint32_t LocoUpdateTime;
+uint32_t CVSVUpdateTime;
 uint32_t LoopTimer;
 bool A0rx;
 bool A1rx;
@@ -126,7 +127,7 @@ uint8_t uiLnSendCheckSumIdx = 13; //last byte is CHK_SUMM
 #define UID_LEN         7
 
 boolean DealtWith  ;
-
+boolean POWERON;
 boolean LOCO  = 1; // for LOCO use
 
 int RFIDSTATE ;

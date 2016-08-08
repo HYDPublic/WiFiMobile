@@ -65,8 +65,8 @@ uint8_t SendMsg[4];
        addr= UID[1]+(UID[2]*256);
        addr = addr & 2047; 
      #if _SERIAL_SUBS_DEBUG
-         Serial.print("RFID step: ");
-         Serial.print (where);
+         Serial.print("RFID ");
+         //Serial.print (where);
                  Serial.print(" Addr:");        
                  Serial.print (addr);
                  Serial.print (" Val:");
