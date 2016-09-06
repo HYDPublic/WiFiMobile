@@ -44,8 +44,6 @@ boolean bReaderActive = false;
 
 //#############################################################
 
-  uint32_t uiStartTime;
- uint32_t uiActTime;
   bool delaying;
   bool bRFIDactive;
   unsigned char i=0;
@@ -59,13 +57,21 @@ bool bRFIDquiet;
 
 
 void SendUID (uint8_t *UID, uint8_t PHASE,int where ){  //phase 1 =on 0=off
-uint8_t SendMsg[4];
+//uint8_t SendMsg[4];
   int tempaddr; 
   int addr; 
+// send off if not otherwise caught ??
+
+
+
+
+  
        addr= UID[1]+(UID[2]*256);
-       addr = addr & 2047; 
-     #if _SERIAL_SUBS_DEBUG
-         Serial.print("RFID ");
+       addr = 100+(addr & 127); // function to place all tags within a 127 range , starting at 100.. WILL RESULT IN DUPLICATE TAG ADDRESSES!!
+       if (!(addr==100)){
+     #if _SERIAL_DEBUG
+   //  Serial.print(millis());
+    //     Serial.print(" ms RFID ");
          //Serial.print (where);
                  Serial.print(" Addr:");        
                  Serial.print (addr);
@@ -74,45 +80,58 @@ uint8_t SendMsg[4];
                 #endif
         if (PHASE==1) {
                    SensorOutput_Inactive = false;       
-                   setOPCMsg(SendMsg, addr-1, 0); }
+                   setOPCMsg(sendMessage, addr-1, 0); }
         if (PHASE==0){ 
                    SensorOutput_Inactive = true; 
-                   setOPCMsg(SendMsg, addr-1, 1);  
-              oldUid[1]=0;
-              oldUid[2]=0; 
+                   setOPCMsg(sendMessage, addr-1, 1);  
+             oldUid[1]=0;
+             oldUid[2]=0; 
         }
   
        #if _SERIAL_SUBS_DEBUG
        //    Serial.print(" msg ");
-       //    dump_byte_array(SendMsg,4);
+       //    dump_byte_array(sendMessage,4);
        //   Serial.println(); 
           #endif
-          UDPSEND(SendMsg,4,2);
+          UDPSEND(sendMessage,4,2);
+         // delay(5);                      // repeat.. Because system uses UDP, a single transmission may get lost?.
+         // UDPSEND(sendMessage,4,2);
+       }
 }
 
 void checkRFID(){
+  RFIDCycle=RFIDCycle+20;  //check rfid at 20ms intervals   (would work if I coud get this cycle beliw 20ms !!!)
   if(bReaderActive){
-          if ( mfrc522.PICC_IsNewCardPresent()&& mfrc522.PICC_ReadCardSerial()){
-               delay(5); //test delay allow wifi background
+
+    // OLD CODE
+        if ( mfrc522.PICC_IsNewCardPresent()&& mfrc522.PICC_ReadCardSerial()){
+        //  Serial.println("Newcard and Piccreadserial line 107");
                if(!compareUid( mfrc522.uid.uidByte, oldUid, mfrc522.uid.size)){// NEW  (NOT same UID) 
+                          SendUID(oldUid,0,2);   //clear old uid
+                          SendUID(mfrc522.uid.uidByte,1,1); 
+                          RFIDCycle=millis()+2000;   // switched on, so do'nt do any more reading for 2 secs..
                           copyUid(mfrc522.uid.uidByte, oldUid, mfrc522.uid.size); //save in oldUID
-                          SendUID(mfrc522.uid.uidByte,1,1);
-                          uiStartTime = millis();
-                          bRFIDactive=true;
+                     //     uiStartTime = millis()+2000;     
+                     //     bRFIDactive=true;
                           bRFIDquiet=false;
+                    //    Serial.println("Found new card..line116");
                                                                               }//  end NOT same UID same 
-                                      else{uiStartTime = millis();  //last time card was seen
-                                          }                                              //same card..
+                                else{//is the same card still...
+                   //                    Serial.println("Same card..line119");
+                                //      uiStartTime = millis()+2000; 
+                                      RFIDCycle=millis()+2000;  //update time card was seen
+                                      }                                              //same card end..
                    } else { //  nothing read..
-                            delay(5);       //test delay     allow wifi background                                        //
-                               //if(compareUid( mfrc522.uid.uidByte, oldUid, mfrc522.uid.size)){//same UID  
-                             
-                             if((!bRFIDquiet)& (millis()>= uiStartTime + uiDelayTime)){ // wait delay before declaring the card gone
+
+                             if((!bRFIDquiet)& (millis()>= RFIDCycle + uiDelayTime)){ 
+                  //           Serial.println("Nothing read for a while .line 126"); // wait delay before declaring the card gone
                                  SendUID(oldUid,0,3);
                                  bRFIDquiet=true; } //if((uiActTime
                                                                                              }// nothing read  
                                  
-                                                                                }//ifmrfc
+                                                                                
+                                                                                
+ }//ifmrfc
 }
 
 

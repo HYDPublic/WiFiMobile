@@ -51,7 +51,7 @@ uint8_t ucSenType = 0x0F; //input
  
  //// Debug settings
 #define _SERIAL_DEBUG  1
-#define _SERIAL_SUBS_DEBUG 1
+#define _SERIAL_SUBS_DEBUG 0  
 
 
 
@@ -97,15 +97,19 @@ Servo myservo10;  // create servo object to control a servo
 int CRD_SENSOR ;
 
 uint8_t Motor_Speed =0 ;
+uint8_t SPEED =0 ;
 uint8_t Loco_motor_servo_demand =0 ;
 uint32_t locoA0time;
 uint32_t locoA1time;
 uint32_t locoA2time;
+  uint32_t uiStartTime;
+ uint32_t uiActTime;
+ uint32_t WaitUntill;
 byte locosum;
 boolean LocoUpdated;
-uint32_t LocoUpdateTime;
-uint32_t CVSVUpdateTime;
+
 uint32_t LoopTimer;
+uint32_t LocoCycle;
 bool A0rx;
 bool A1rx;
 bool A2rx;
@@ -119,6 +123,8 @@ uint8_t MyLocoAddr ;
 
   uint8_t recMessage[128]; 
   uint8_t sendMessage[128]; 
+  uint8_t DebugMessage[128];
+  uint8_t LenDebugMessage;
 byte OPC_Data[10];
 uint8_t Message_Length;
 
@@ -131,8 +137,10 @@ boolean POWERON;
 boolean LOCO  = 1; // for LOCO use
 
 int RFIDSTATE ;
+uint32_t RFIDCycle;
+uint8_t RFIDDots;
 boolean  Data_Updated;
-uint32_t EEprom_Counter; 
+uint32_t EPROM_Write_Delay; 
 uint32_t Ten_Sec;
 uint32_t MSTimer;
 //describe the subroutines..

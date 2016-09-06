@@ -1,6 +1,16 @@
 /**
  * Helper routine to dump a byte array as hex values to Serial.
  */
+void UDPFetch (uint8_t *recMessage){
+   uint8_t recLen = UDP.parsePacket();
+   Message_Length= recLen;  // test to try to avoid calling parsepacket multiple times inside loop..
+   if(Message_Length!= 0){    // Check if a rocrail client has connected
+          digitalWrite (BlueLed, LOW) ;  /// turn On 
+          UDP.read(recMessage, Message_Length);
+          UDP.flush();
+     
+  }
+}
 void UDPSEND (uint8_t *SendMsg, uint8_t Len,int DELAY){
 
               UDP2.beginPacket(ipBroad, port);
@@ -8,20 +18,30 @@ void UDPSEND (uint8_t *SendMsg, uint8_t Len,int DELAY){
               UDP2.endPacket(); 
               UDP2.flush();
 }
-
 void setOPC_LONG_ACK_Msg (uint8_t *SendMsg, uint8_t LOPC, uint8_t ACK1 )  
           {
   unsigned char k = 0;
   uint16_t tempaddr; 
    SendMsg[0] = 0xB4 ; //Long Ack
-    SendMsg[1] = LOPC;  // count
+    SendMsg[1] = (LOPC & 0x7F);  //MSB always 0
      SendMsg[2] = ACK1; 
         SendMsg[3]=0xFF;
         for(k=0; k<3;k++){                                   //Make checksum for this three byte message
         SendMsg[3] ^= SendMsg[k];
                          }
 }
-
+void Send_LONG_ACK (uint8_t *SendMsg, uint8_t LOPC, uint8_t ACK1 )  
+          {
+  unsigned char k = 0;
+  uint16_t tempaddr; 
+   SendMsg[0] = 0xB4 ; //Long Ack
+    SendMsg[1] = (LOPC & 0x7F);  //MSB always 0
+     SendMsg[2] = ACK1; 
+        SendMsg[3]=0xFF;
+        for(k=0; k<3;k++){                                   //Make checksum for this three byte message
+        SendMsg[3] ^= SendMsg[k];
+                         }
+}
 
  
 void dump_byte_array(byte *buffer, byte bufferSize) {
@@ -415,17 +435,16 @@ return Addr;
 
 
 
-void doPeriodicServo() {  // attaches and detatches servos
+void doPeriodicServo() {  // attaches and detaches servos, accelerates to demanded positions etc..
   int ServoPositionNow;
   int Servodemand;
   int Servoattached;
   int offset;
- for (int i=1 ; i<=8; i++) {
-  if ((((SV[3*i]& 0x88) ==0x88)) ||((i==8)&(LOCO==1))){  // only if this port is a servo... or i = 8 and loco
- 
+ for (int i=1 ; i<=8; i++) {  //up to 8 servos...
+  if ((((SV[3*i]& 0x88) ==0x88)) ||((i==8)&(LOCO==1))){  // only if this port is a servo...  
      SDelay[i]=SDelay[i]+1;
-  if (SDelay[i] >= SloopDelay){   // only do this at intervals...
-                   SDelay[i]=0;    
+     if (SDelay[i] >= SloopDelay){   // only do this at intervals...
+                      SDelay[i]=0;    
 
    
 switch  (i){  // we sort out which servo to operate here.. case 1= the Base Address
@@ -577,7 +596,7 @@ switch  (i){  // we sort out which servo to operate here.. case 1= the Base Addr
 
    break;      }
 if (SloopDelay >=20){  // only send debug if updating slowly... 
-    #if _SERIAL_DEBUG
+    #if _SERIAL_SUBS_DEBUG
          Serial.println();
          Serial.print(F("Servo:"));
          Serial.print(i); 
@@ -596,37 +615,31 @@ if (SloopDelay >=20){  // only send debug if updating slowly...
    }
  }
   } }
-void doLocoServo() {  // updates loco servo attaches and detatches servos
+void doLocoServo() {  // updates loco servo attaches and detaches servos, this is where the acceleration happens..
   int ServoPositionNow;
   int Servodemand;
   int Servoattached;
   int offset;
   int i;
-
-i=8;     
-
-  if (millis()>=servoDelay[i]){   // only do this at 100ms intervals...
-                   servoDelay[8]=millis()+100;    
+      LocoCycle=LocoCycle+100;    // only do this at 100ms intervals...
+       
+// this delay only used with multiple servos..  if (millis()>=servoDelay[i]){ servoDelay[8]=millis()+100;    
 
     // this is the servo for the loco throttle 
     ServoPositionNow= myservo8.read(); 
-    SDemand[i]=Loco_motor_servo_demand;
+    SDemand[8]=Loco_motor_servo_demand;
     offset= Loco_motor_servo_demand-ServoPositionNow;
-    if (abs(offset) > (CV[3]+1)){  // can be acc and dec Cv's later...
+    if (abs(offset) > (CV[3]+1)){  // Ony move by "offset" every 100ms... Higher Offset, Higher acceleration... can be separate Acc and Dec Cv's later...
       offset= (offset*(CV[3]+1))/abs(offset);
-    }
+                                }
     if ((ServoPositionNow+offset<=180) && ((ServoPositionNow+offset) >=1)){
-      myservo8.write(ServoPositionNow+offset);    // if you play with the CV values this can go temporarily crazy...
-    }
-   // if (Loco_motor_servo_demand==90){
-   //  myservo8.write(Loco_motor_servo_demand);  // set mid position immediately!
-   // }
-         }
-if (SloopDelay >=20){  // only send debug if updating slowly... 
-    #if _SERIAL_DEBUG
+      myservo8.write(ServoPositionNow+offset);    // RANGE LIMITS... if you play with the CV values this can go temporarily crazy...
+                                                                          }
+ if (SloopDelay >=20){  // only send debug if updating slowly... 
+    #if _SERIAL_SUBS_DEBUG
          Serial.println();
-         Serial.print(F("Servo:"));
-         Serial.print(i); 
+         Serial.print(F("Servo 8:"));
+         //Serial.print(i); 
          Serial.print("  attached="), 
            Serial.print(Servoattached); 
          Serial.print(" Position now=");
@@ -805,68 +818,139 @@ bool compareUid(byte *buffer1, byte *buffer2, byte bufferSize) {
 }
 
 void LocoUpdate( byte Ref){   
-  #if _SERIAL_DEBUG
+  #if _SERIAL_SUBS_DEBUG  
+  Serial.print(micros());
+  Serial.print(" us ");
  // Serial.print(Ref);
        #endif 
- // if ((A0rx) & (A1rx)&(A2rx)){           
-  // setOPC_LONG_ACK_Msg (sendMessage, 0xA3,  MyLocoAddr)  ; // all parts received, send ACK
-   //UDPSEND(sendMessage,4,(millis()-locoA2time));
-   // }else{    
-     // #if _SERIAL_DEBUG
-     //  if (!A0rx){Serial.print("A0 Missed");}
-      // if (!A1rx){Serial.print("A1 Missed");} 
-       //if (!A2rx){Serial.print("A2 Missed");}
-       //     #endif  
+if ((A0rx) && (A1rx)&&(A2rx)){    
+  sendMessage[0]=0xA3;
+  sendMessage[1]=MyLocoAddr;
+  sendMessage[2]=SPEED;
+  sendMessage[3]=DIRF;
+  sendMessage[4]=SND;    
+  sendMessage[5]=Ref;   
+  //setOPC_LONG_ACK_Msg (sendMessage, 0xA3,  MyLocoAddr)  ; // all parts received, send ACK
+  UDPSEND(sendMessage,6,1);
+  WaitUntill=millis()+30;  // pause before allowing rfid to run
+    }
+
+   //   Serial.print(" @ms  ");
+   //   Serial.print(millis());
+        
+      #if _SERIAL_SUBS_DEBUG
+      if (!A0rx){Serial.print(" A0 Missed");}
+      if (!A1rx){Serial.print(" A1 Missed");} 
+      if (!A2rx){Serial.print(" A2 Missed ");}
+         #endif  
          //   }
 A0rx=false;
 A1rx=false;
 A2rx=false;
 A3rx=false;
- 
+ digitalWrite (D0, 1);
+ digitalWrite (D3, 1);
+                       // lights OFF
+
   if(bitRead(CV[29],0)){            // need to account for the  cv29 bit 0....
           if(bitRead(DIRF, 5 )){
-             Serial.print(" Backwards"); 
-             Loco_motor_servo_demand= (CV[2]+ (Motor_Speed*(CV[5]-CV[2]))/(100));}
+             Serial.print(" B"); 
+             Loco_motor_servo_demand= (CV[2]+ (Motor_Speed*(CV[5]-CV[2]))/(100));
+                  if  (bitRead(DIRF,4)){ digitalWrite (D3, 0); }}
           else{
-             Serial.print(" Forwards"); 
-             Loco_motor_servo_demand= (CV[6]- (Motor_Speed*(CV[6]-CV[9]))/(100)) ;}
+             Serial.print(" F"); 
+             Loco_motor_servo_demand= (CV[6]- (Motor_Speed*(CV[6]-CV[9]))/(100)) ;
+              if  (bitRead(DIRF,4)){    digitalWrite (D0, 0);}}
                       }
                  else {
     if(bitRead(DIRF, 5 )){
-            Serial.print(" Forwards"); 
-            Loco_motor_servo_demand=  (CV[2]+ (Motor_Speed*(CV[5]-CV[2]))/(100));}
+            Serial.print(" Fo"); 
+            Loco_motor_servo_demand=  (CV[2]+ (Motor_Speed*(CV[5]-CV[2]))/(100));
+             if  (bitRead(DIRF,4)){     digitalWrite (D0, 0);}}
           else{
-            Serial.print(" Backwards");
-            Loco_motor_servo_demand= (CV[6]- (Motor_Speed*(CV[6]-CV[9]))/(100)) ;}
-                      }  
-                      digitalWrite (D3, bitRead(DIRF,3));
-                      digitalWrite (D0, bitRead(DIRF,2));  //LED CHEAT    FIX later..
-
+            Serial.print(" Ba");
+            Loco_motor_servo_demand= (CV[6]- (Motor_Speed*(CV[6]-CV[9]))/(100)) ;
+                       if  (bitRead(DIRF,4)){ digitalWrite (D3,0); }}  
+                 }
+       
+                     
             if ((Motor_Speed == 00)||(Motor_Speed==0x01)) { Loco_motor_servo_demand=90;} 
                       
-     #if _SERIAL_DEBUG
-          Serial.print(F(" @ Speed :"));
+     #if _SERIAL_SUBS_DEBUG
+          Serial.print(F(" @ :"));
           Serial.print(Motor_Speed);
-          Serial.print(F(" Servo :"));
+          Serial.print(F(" S :"));
           Serial.print(Loco_motor_servo_demand);
-          Serial.print(F(" Functions: "));
+          Serial.print(F(" Fn: "));
           Serial.println(DIRF&0x1F);
      #endif  
      LocoUpdated=false;
 }
 
-void UDPFetch (uint8_t *recMessage){
-   uint8_t recLen = UDP.parsePacket();
-   Message_Length= recLen;  // test to try to avoid calling parsepacket multiple times inside loop..
-   if(Message_Length!=0){    // Check if a rocrail client has connected
-          digitalWrite (BlueLed, LOW) ;  /// turn On 
-          UDP.read(recMessage, Message_Length);
-          UDP.flush();
-     
-  }
+void SetLocoDemand(byte Ref){
+  // takes SPEED, DIRF and SND and sets demands for servo, lights etc.
+  #if _SERIAL_SUBS_DEBUG  
+          Serial.print(millis());
+          Serial.print(" ms :Speed:"); 
+          Serial.print(SPEED);
+          Serial.print(" Dirf:");
+          Serial.print(DIRF);
+          Serial.print(" Snd:");
+          Serial.print(SND);
+          Serial.print(" ref:");
+          Serial.print(Ref);
+       #endif 
+       //-------------------TEST 
+  
+  DebugMessage[LenDebugMessage]=0xA3;
+  DebugMessage[LenDebugMessage+1]=MyLocoAddr;
+  DebugMessage[LenDebugMessage+2]=SPEED;
+  DebugMessage[LenDebugMessage+3]=DIRF;
+  DebugMessage[LenDebugMessage+4]=SND;    
+  DebugMessage[LenDebugMessage+5]=Ref;   
+  UDPSEND(DebugMessage,(LenDebugMessage+6),1);
+   LenDebugMessage=0;
+       //-----------------------TEST
+ digitalWrite (D0, 1);  // lights OFF
+ digitalWrite (D3, 1);
+ Motor_Speed= ((SPEED*45)/57); //try to make Motor Speed equal to what Rocrail shows
+ //---------Lights and Setvo settings---------------
+ if(bitRead(CV[29],0)){            // need to account for the  cv29 bit 0....
+          if(bitRead(DIRF, 5 )){
+             Serial.print(" B"); 
+             Loco_motor_servo_demand= (CV[2]+ (Motor_Speed*(CV[5]-CV[2]))/(100));
+                  if  (bitRead(DIRF,4)){ digitalWrite (D3, 0); }}
+          else{
+             Serial.print(" F"); 
+             Loco_motor_servo_demand= (CV[6]- (Motor_Speed*(CV[6]-CV[9]))/(100)) ;
+              if  (bitRead(DIRF,4)){    digitalWrite (D0, 0);}}
+                      }
+                 else {
+    if(bitRead(DIRF, 5 )){
+            Serial.print(" Fo"); 
+            Loco_motor_servo_demand=  (CV[2]+ (Motor_Speed*(CV[5]-CV[2]))/(100));
+             if  (bitRead(DIRF,4)){     digitalWrite (D0, 0);}}
+          else{
+            Serial.print(" Ba");
+            Loco_motor_servo_demand= (CV[6]- (Motor_Speed*(CV[6]-CV[9]))/(100)) ;
+                       if  (bitRead(DIRF,4)){ digitalWrite (D3,0); }}  
+                 }
+   if ((Motor_Speed == 00)||(Motor_Speed==0x01)) { Loco_motor_servo_demand=90;} 
+                      
+     #if _SERIAL_SUBS_DEBUG
+          Serial.print(F(" @ :"));
+          Serial.print(Motor_Speed);
+          Serial.print(F(" S :"));
+          Serial.print(Loco_motor_servo_demand);
+          Serial.print(F(" Fn: "));
+          Serial.println(DIRF&0x1F);
+     #endif       
+     LocoUpdated=false;
 }
+
+
 void Show_MSG(){
-   #if _SERIAL_DEBUG      
+   #if _SERIAL_SUBS_DEBUG      
          Serial.println(); 
          Serial.print(F("From:"));
          IPAddress remote = UDP.remoteIP();
